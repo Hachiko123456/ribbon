@@ -61,20 +61,26 @@ public class BaseLoadBalancer extends AbstractLoadBalancer implements
 
     private static Logger logger = LoggerFactory.getLogger(BaseLoadBalancer.class);
 
+    // 默认负载均衡规则是线性负载均衡规则
     private final static IRule DEFAULT_RULE = new RoundRobinRule();
+    // 默认的检查服务策略是线性检查服务策略
     private final static SerialPingStrategy DEFAULT_PING_STRATEGY = new SerialPingStrategy();
     private static final String DEFAULT_NAME = "default";
     private static final String PREFIX = "LoadBalancer_";
 
     protected IRule rule = DEFAULT_RULE;
 
+    //
     protected IPingStrategy pingStrategy = DEFAULT_PING_STRATEGY;
 
+    // 检查服务实例是否正常
     protected IPing ping = null;
 
+    // 全部服务列表
     @Monitor(name = PREFIX + "AllServerList", type = DataSourceType.INFORMATIONAL)
     protected volatile List<Server> allServerList = Collections
             .synchronizedList(new ArrayList<Server>());
+    // 正常服务的实例清单
     @Monitor(name = PREFIX + "UpServerList", type = DataSourceType.INFORMATIONAL)
     protected volatile List<Server> upServerList = Collections
             .synchronizedList(new ArrayList<Server>());
@@ -263,6 +269,9 @@ public class BaseLoadBalancer extends AbstractLoadBalancer implements
         }
     }
 
+    /**
+     * 启动一个用于定时检查Server是否健康的任务，默认执行间隔为10s
+     **/
     void setupPingTask() {
         if (canSkipPing()) {
             return;
@@ -729,7 +738,8 @@ public class BaseLoadBalancer extends AbstractLoadBalancer implements
         return Monitors.newCounter("LoadBalancer_ChooseServer");
     }
 
-    /*
+    /**
+     * 挑选一个具体的服务实例
      * Get the alive server dedicated to key
      * 
      * @return the dedicated server
@@ -766,6 +776,11 @@ public class BaseLoadBalancer extends AbstractLoadBalancer implements
         }
     }
 
+    /**
+     * 标识服务下线
+     * @param server
+     * @return void
+     **/
     public void markServerDown(Server server) {
         if (server == null || !server.isAlive()) {
             return;
@@ -880,6 +895,7 @@ public class BaseLoadBalancer extends AbstractLoadBalancer implements
     }
 
     /**
+     * 默认的检查服务策略，线性遍历服务实例的方式实现检查，如果服务过多，会有性能问题
      * Default implementation for <c>IPingStrategy</c>, performs ping
      * serially, which may not be desirable, if your <c>IPing</c>
      * implementation is slow, or you have large number of servers.

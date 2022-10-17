@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 用来存储负载均衡器中各个服务实例当前的属性和信息，我们可以利用这些信息来观察负载均衡的运行情况，同时这些信息也是用来制定负载均衡策略的中药依据
  * Class that acts as a repository of operational charateristics and statistics
  * of every Node/Server in the LaodBalancer.
  * 

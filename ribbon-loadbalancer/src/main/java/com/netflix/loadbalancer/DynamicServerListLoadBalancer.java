@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * 实现了服务实例清单在运行期的动态更新能力，同时还具备了对服务实例清单的过滤功能
  * A LoadBalancer that has the capabilities to obtain the candidate list of
  * servers using a dynamic source. i.e. The list of servers can potentially be
  * changed at Runtime. It also contains facilities wherein the list of servers
@@ -51,10 +52,13 @@ public class DynamicServerListLoadBalancer<T extends Server> extends BaseLoadBal
     // to keep track of modification of server lists
     protected AtomicBoolean serverListUpdateInProgress = new AtomicBoolean(false);
 
+    // 服务列表
     volatile ServerList<T> serverListImpl;
 
+    // 服务列表过滤器
     volatile ServerListFilter<T> filter;
 
+    // 服务列表更新策略
     protected final ServerListUpdater.UpdateAction updateAction = new ServerListUpdater.UpdateAction() {
         @Override
         public void doUpdate() {
@@ -62,6 +66,7 @@ public class DynamicServerListLoadBalancer<T extends Server> extends BaseLoadBal
         }
     };
 
+    // 服务列表更新器
     protected volatile ServerListUpdater serverListUpdater;
 
     public DynamicServerListLoadBalancer() {
@@ -235,7 +240,9 @@ public class DynamicServerListLoadBalancer<T extends Server> extends BaseLoadBal
     @VisibleForTesting
     public void updateListOfServers() {
         List<T> servers = new ArrayList<T>();
+        // serverListImpl -> DiscoveryEnabledNIWSServerList
         if (serverListImpl != null) {
+            //
             servers = serverListImpl.getUpdatedListOfServers();
             LOGGER.debug("List of Servers for {} obtained from Discovery client: {}",
                     getIdentifier(), servers);

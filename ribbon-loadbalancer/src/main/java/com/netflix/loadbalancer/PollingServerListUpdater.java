@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * 通过定时任务的方式去更新Server列表
  * A default strategy for the dynamic server list updater to update.
  * (refactored and moved here from {@link com.netflix.loadbalancer.DynamicServerListLoadBalancer})
  *
@@ -65,6 +66,7 @@ public class PollingServerListUpdater implements ServerListUpdater {
     @Override
     public synchronized void start(final UpdateAction updateAction) {
         if (isActive.compareAndSet(false, true)) {
+            // 定时更新Server列表任务
             final Runnable wrapperRunnable = () ->  {
                 if (!isActive.get()) {
                     if (scheduledFuture != null) {
@@ -80,6 +82,7 @@ public class PollingServerListUpdater implements ServerListUpdater {
                 }
             };
 
+            // 开启一个延迟1s，并且间隔周期为30s的定时任务，记录最后更新时间，是否存活等信息
             scheduledFuture = getRefreshExecutor().scheduleWithFixedDelay(
                     wrapperRunnable,
                     initialDelayMs,

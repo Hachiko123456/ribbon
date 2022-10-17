@@ -26,6 +26,7 @@ import java.util.Set;
 import com.netflix.client.config.IClientConfig;
 
 /**
+ * 区域规避算法
  * A rule that uses the a {@link CompositePredicate} to filter servers based on zone and availability. The primary predicate is composed of
  * a {@link ZoneAvoidancePredicate} and {@link AvailabilityPredicate}, with the fallbacks to {@link AvailabilityPredicate}
  * and an "always true" predicate returned from {@link AbstractServerPredicate#alwaysTrue()} 
@@ -68,22 +69,32 @@ public class ZoneAvoidanceRule extends PredicateBasedRule {
         return map;
     }
 
+    /**
+     * 随机从列表中选择一个zone
+     * @param snapshot
+     * @param chooseFrom
+     * @return java.lang.String
+     **/
     static String randomChooseZone(Map<String, ZoneSnapshot> snapshot,
             Set<String> chooseFrom) {
         if (chooseFrom == null || chooseFrom.size() == 0) {
             return null;
         }
+        // 如果只有一个zone，直接返回
         String selectedZone = chooseFrom.iterator().next();
         if (chooseFrom.size() == 1) {
             return selectedZone;
         }
         int totalServerCount = 0;
+        // 区域中总的Server实例数
         for (String zone : chooseFrom) {
             totalServerCount += snapshot.get(zone).getInstanceCount();
         }
+        // 从Server总数中选择一个数字
         int index = random.nextInt(totalServerCount) + 1;
         int sum = 0;
         for (String zone : chooseFrom) {
+            // 当当前实例统计的总数大于随机数时，则返回，这样可以保证Server数量大的区域被选中概率较大
             sum += snapshot.get(zone).getInstanceCount();
             if (index <= sum) {
                 selectedZone = zone;
@@ -93,40 +104,54 @@ public class ZoneAvoidanceRule extends PredicateBasedRule {
         return selectedZone;
     }
 
+    /**
+     * @param snapshot
+     * @param triggeringLoad 平均负载阈值
+     * @param triggeringBlackoutPercentage 触发熄灭阈值，当实例挂了该数值的百分比时，就移除掉该区域
+     * @return java.util.Set<java.lang.String>
+     **/
     public static Set<String> getAvailableZones(
             Map<String, ZoneSnapshot> snapshot, double triggeringLoad,
             double triggeringBlackoutPercentage) {
         if (snapshot.isEmpty()) {
             return null;
         }
+        // 有效区域
         Set<String> availableZones = new HashSet<String>(snapshot.keySet());
         if (availableZones.size() == 1) {
             return availableZones;
         }
         Set<String> worstZones = new HashSet<String>();
+        // 最大负载
         double maxLoadPerServer = 0;
+        // 区域是否有限可用，true:有限可用，false:全部可用
         boolean limitedZoneAvailability = false;
 
         for (Map.Entry<String, ZoneSnapshot> zoneEntry : snapshot.entrySet()) {
             String zone = zoneEntry.getKey();
             ZoneSnapshot zoneSnapshot = zoneEntry.getValue();
             int instanceCount = zoneSnapshot.getInstanceCount();
+            // 如果该区域一个可用实例都没有了，那就是完全不可用，移除该zone
             if (instanceCount == 0) {
                 availableZones.remove(zone);
                 limitedZoneAvailability = true;
             } else {
+                // 该zone的平均负载
                 double loadPerServer = zoneSnapshot.getLoadPerServer();
+                // 机器的熔断总数/总实例超过了熄灭阈值，就认为该区域不可用，移除该区域
                 if (((double) zoneSnapshot.getCircuitTrippedCount())
                         / instanceCount >= triggeringBlackoutPercentage
                         || loadPerServer < 0) {
                     availableZones.remove(zone);
                     limitedZoneAvailability = true;
                 } else {
+                    // 若当前负载与最大负载相当,则认为该区域是一个很糟糕的区域
                     if (Math.abs(loadPerServer - maxLoadPerServer) < 0.000001d) {
                         // they are the same considering double calculation
                         // round error
                         worstZones.add(zone);
                     } else if (loadPerServer > maxLoadPerServer) {
+                        // 负载大于最大负载
                         maxLoadPerServer = loadPerServer;
                         worstZones.clear();
                         worstZones.add(zone);
@@ -135,10 +160,12 @@ public class ZoneAvoidanceRule extends PredicateBasedRule {
             }
         }
 
+        // 如果最大负载小于设定的负载阈值，并且zone全部可用，则返回全部的zone
         if (maxLoadPerServer < triggeringLoad && !limitedZoneAvailability) {
             // zone override is not needed here
             return availableZones;
         }
+        // 随机移除一个糟糕zone，然后返回
         String zoneToAvoid = randomChooseZone(snapshot, worstZones);
         if (zoneToAvoid != null) {
             availableZones.remove(zoneToAvoid);

@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 通过Eureka事件的方式去更新Server列表
  * A server list updater for the {@link com.netflix.loadbalancer.DynamicServerListLoadBalancer} that
  * utilizes eureka's event listener to trigger LB cache updates.
  *

@@ -148,6 +148,11 @@ public class DiscoveryEnabledNIWSServerList extends AbstractServerList<Discovery
         return obtainServersViaDiscovery();
     }
 
+    /**
+     * 结合eureka获取服务实例列表
+     * @param
+     * @return java.util.List<com.netflix.niws.loadbalancer.DiscoveryEnabledServer>
+     **/
     private List<DiscoveryEnabledServer> obtainServersViaDiscovery() {
         List<DiscoveryEnabledServer> serverList = new ArrayList<DiscoveryEnabledServer>();
 
@@ -158,8 +163,10 @@ public class DiscoveryEnabledNIWSServerList extends AbstractServerList<Discovery
 
         EurekaClient eurekaClient = eurekaClientProvider.get();
         if (vipAddresses!=null){
+            // 遍历服务名列表
             for (String vipAddress : vipAddresses.split(",")) {
                 // if targetRegion is null, it will be interpreted as the same region of client
+                // 获取服务器实例列表
                 List<InstanceInfo> listOfInstanceInfo = eurekaClient.getInstancesByVipAddress(vipAddress, isSecure, targetRegion);
                 for (InstanceInfo ii : listOfInstanceInfo) {
                     if (ii.getStatus().equals(InstanceStatus.UP)) {
@@ -181,6 +188,7 @@ public class DiscoveryEnabledNIWSServerList extends AbstractServerList<Discovery
                             }
                         }
 
+                        // 创建Server对象
                         DiscoveryEnabledServer des = createServer(ii, isSecure, shouldUseIpAddr);
                         serverList.add(des);
                     }
